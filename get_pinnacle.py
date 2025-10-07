@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # Script to fetch odds data from Pinnacle API and store it in a PostgreSQL database
-# Designed to run as a cron job on Render
+# Designed to run as a cron job on GitHub Actions
 
 # Import required libraries
 import os          # For accessing environment variables
