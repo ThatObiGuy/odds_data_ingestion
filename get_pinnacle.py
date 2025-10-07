@@ -8,6 +8,7 @@ import requests    # For making HTTP requests
 import psycopg2    # For PostgreSQL database connection
 import logging     # For logging information and errors
 import sys         # For system-level operations
+import datetime    # For timestamp generation
 
 # Set up basic logging configuration
 logging.basicConfig(
@@ -16,6 +17,22 @@ logging.basicConfig(
     handlers=[logging.StreamHandler(sys.stdout)]
 )
 logger = logging.getLogger(__name__)
+
+def round_to_30_minutes(dt):
+    """Round datetime to the nearest 30-minute interval"""
+    # Get minutes and determine if we should round up or down
+    minutes = dt.minute
+    if minutes < 15:
+        # Round down to :00
+        rounded_dt = dt.replace(minute=0, second=0, microsecond=0)
+    elif minutes < 45:
+        # Round to :30
+        rounded_dt = dt.replace(minute=30, second=0, microsecond=0)
+    else:
+        # Round up to next hour :00
+        rounded_dt = (dt.replace(minute=0, second=0, microsecond=0) + 
+                     datetime.timedelta(hours=1))
+    return rounded_dt
 
 def get_pinnacle_odds():
     # Get API key from environment variable
@@ -47,6 +64,10 @@ def get_pinnacle_odds():
         conn = psycopg2.connect(database_url)
         cursor = conn.cursor()
 
+        # Get current timestamp rounded to nearest 30 minutes
+        current_time = datetime.datetime.now(datetime.timezone.utc)
+        logged_time = round_to_30_minutes(current_time).isoformat()
+
         # Process events data
         events_count = 0
         for event in data.get('events', []):
@@ -68,13 +89,14 @@ def get_pinnacle_odds():
             draw_odds = money_line.get('draw')
             away_odds = money_line.get('away')
 
-            # SQL query for inserting or updating data
+            # SQL query for inserting or updating data using ON CONFLICT
             insert_query = """
                 INSERT INTO odds1x2 (
-                    event_id, sport_id, league_id, league_name, starts, 
+                    event_id, logged_time, sport_id, league_id, league_name, starts, 
                     home_team, away_team, home_odds, draw_odds, away_odds
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                ON CONFLICT (event_id) DO UPDATE SET
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT (event_id, logged_time) 
+                DO UPDATE SET
                     sport_id = EXCLUDED.sport_id,
                     league_id = EXCLUDED.league_id,
                     league_name = EXCLUDED.league_name,
@@ -88,7 +110,7 @@ def get_pinnacle_odds():
 
             # Execute query with data
             cursor.execute(insert_query, (
-                event_id, sport_id, league_id, league_name, starts,
+                event_id, logged_time, sport_id, league_id, league_name, starts,
                 home_team, away_team, home_odds, draw_odds, away_odds
             ))
             events_count += 1
