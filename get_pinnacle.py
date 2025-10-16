@@ -70,6 +70,7 @@ def get_pinnacle_odds():
 
         # Process events data
         events_count = 0
+        skipped_count = 0
         for event in data.get('events', []):
             # Extract event details
             event_id = event.get('event_id')
@@ -84,7 +85,14 @@ def get_pinnacle_odds():
             periods = event.get('periods', {})
             match_period = periods.get('num_0', {})
 
-            money_line = match_period.get('money_line', {})
+            money_line = match_period.get('money_line')
+            
+            # Skip this event if money_line is None/null
+            if money_line is None:
+                logger.debug(f"Skipping event {event_id} - money_line is null")
+                skipped_count += 1
+                continue
+            
             home_odds = money_line.get('home')
             draw_odds = money_line.get('draw')
             away_odds = money_line.get('away')
@@ -117,7 +125,7 @@ def get_pinnacle_odds():
 
         # Save changes to database
         conn.commit()
-        logger.info(f"Processed {events_count} events")
+        logger.info(f"Processed {events_count} events, skipped {skipped_count} events with null money_line")
 
     except requests.exceptions.RequestException as e:
         # Handle API request errors
