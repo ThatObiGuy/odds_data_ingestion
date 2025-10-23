@@ -49,7 +49,7 @@ def get_pinnacle_odds():
 
     # Define API endpoint and parameters
     url = "https://pinnacle-odds.p.rapidapi.com/kit/v1/markets"
-    querystring = {"league_ids": "1980", "event_type": "prematch", "sport_id": "1", "is_have_odds": "true"}
+    querystring = {"league_ids": "11695,201373,191445,1881,1880", "event_type": "prematch", "sport_id": "1", "is_have_odds": "true"}
     headers = {"X-RapidAPI-Key": api_key}
 
     try:
